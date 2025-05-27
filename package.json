@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@near-wallet-selector/hot-wallet": "^9.0.2",
     "@near-wallet-selector/intear-wallet": "^9.0.2",
     "lucide-react": "^0.511.0",
     "next": "^15.3.2",

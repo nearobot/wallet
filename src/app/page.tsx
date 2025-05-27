@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { setupWalletSelector, type WalletSelector } from "@near-wallet-selector/core"
-import { setupIntearWallet } from "@near-wallet-selector/intear-wallet"
+import { setupHotWallet } from "@near-wallet-selector/hot-wallet"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
@@ -27,10 +27,7 @@ export default function WalletConnector() {
         const walletSelector = await setupWalletSelector({
           network: "testnet",
           modules: [
-            setupIntearWallet({
-              iconUrl: undefined,
-              deprecated: false,
-            }),
+            setupHotWallet(),
           ],
         })
 
@@ -76,10 +73,10 @@ export default function WalletConnector() {
     setError(null)
 
     try {
-      console.log("Attempting to connect to Intear wallet...")
+      console.log("Attempting to connect to Hot wallet...")
 
-      // Get the Intear wallet
-      const wallet = await selector.wallet("intear-wallet")
+      // Get the Hot wallet
+      const wallet = await selector.wallet("hot-wallet")
       console.log("Wallet instance:", wallet)
 
       // Sign in with the wallet
@@ -102,7 +99,7 @@ export default function WalletConnector() {
       }
     } catch (err: any) {
       console.error("Wallet connection error:", err)
-      setError(err.message || "Failed to connect wallet. Make sure Intear wallet is installed.")
+      setError(err.message || "Failed to connect wallet. Make sure Hot wallet is installed.")
     } finally {
       setIsConnecting(false)
     }
@@ -191,7 +188,7 @@ export default function WalletConnector() {
               <Wallet style={{ width: "24px", height: "24px", color: "white" }} />
             </div>
             <CardTitle style={{ fontSize: "24px", fontWeight: "bold" }}>NEAR Wallet Connection</CardTitle>
-            <CardDescription>Connect your Intear wallet to interact with NEAR Protocol</CardDescription>
+            <CardDescription>Connect your Hot wallet to interact with NEAR Protocol</CardDescription>
           </CardHeader>
           <CardContent style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             {error && (
@@ -235,7 +232,7 @@ export default function WalletConnector() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ textAlign: "center", fontSize: "14px", color: "#4b5563" }}>
-                  Connect your Intear wallet to get started with NEAR Protocol applications.
+                  Connect your Hot wallet to get started with NEAR Protocol applications.
                 </div>
 
                 <Button onClick={handleConnect} disabled={isConnecting || !selector} style={{ width: "100%" }}>
@@ -257,13 +254,13 @@ export default function WalletConnector() {
                   ) : (
                     <>
                       <Wallet style={{ width: "16px", height: "16px", marginRight: "8px" }} />
-                      Connect Intear Wallet
+                      Connect Hot Wallet
                     </>
                   )}
                 </Button>
 
                 <div style={{ fontSize: "12px", color: "#6b7280", textAlign: "center" }}>
-                  Make sure you have the Intear wallet extension installed in your browser.
+                  Make sure you have the Hot wallet extension installed in your browser.
                 </div>
               </div>
             )}
@@ -273,9 +270,9 @@ export default function WalletConnector() {
         <Card>
           <CardContent style={{ padding: "16px" }}>
             <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "8px" }}>
-              <h3 style={{ fontWeight: "600", fontSize: "14px" }}>About Intear Wallet</h3>
+              <h3 style={{ fontWeight: "600", fontSize: "14px" }}>About Hot Wallet</h3>
               <p style={{ fontSize: "12px", color: "#4b5563" }}>
-                Intear is a secure wallet for the NEAR Protocol ecosystem, providing easy access to decentralized
+                Hot is a secure wallet for the NEAR Protocol ecosystem, providing easy access to decentralized
                 applications and digital assets.
               </p>
             </div>
