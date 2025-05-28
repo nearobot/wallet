@@ -39,7 +39,7 @@ const useTextRoyaleWebSocket = () => {
   const initializeConnection = () => {
     try {
       // Update this URL to point to your WebSocket server
-      const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://69.62.112.25:3001'
+      const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'wss://ws.textroyale.com'
       
       wsRef.current = new WebSocket(wsUrl)
 
