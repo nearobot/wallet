@@ -240,6 +240,33 @@ export default function SendPage() {
   // Static configuration for token transfers
   const TOKEN_CONTRACT = "splaunch.testnet" // or your token contract
   const STATIC_RECEIVER = "blueoil4632.testnet" // Static receiver
+  const TOKEN_DECIMALS = 8 // Most tokens use 18 decimals, adjust as needed
+  const TOKEN_SYMBOL = "SP" // Token symbol for display
+
+  // Format token amount for display
+  const formatToken = (amount: string, decimals: number = TOKEN_DECIMALS): string => {
+    try {
+      const amountBN = parseFloat(amount)
+      const divisor = Math.pow(10, decimals)
+      const formatted = (amountBN / divisor).toFixed(2)
+      
+      // Remove trailing zeros and unnecessary decimal point
+      const cleaned = parseFloat(formatted).toString()
+      
+      return `${cleaned} ${TOKEN_SYMBOL}`
+    } catch (error) {
+      console.error('Error formatting token amount:', error)
+      return `${amount} tokens`
+    }
+  }
+
+  // Get display amount from transaction data
+  const getDisplayAmount = (transactionData: TransactionData): string => {
+    if (transactionData.metadata?.originalAmount) {
+      return `${transactionData.metadata.originalAmount} ${TOKEN_SYMBOL}`
+    }
+    return formatToken(transactionData.amount)
+  }
 
   useEffect(() => {
     const initWalletSelector = async () => {
@@ -358,8 +385,8 @@ export default function SendPage() {
       // Send success result back to WebSocket with transaction ID
       await sendTransactionResult(true, txId, txHash)
       
-      const displayAmount = transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)
-      setSuccess(`Successfully sent ${displayAmount} tokens to ${STATIC_RECEIVER}`)
+      const displayAmount = getDisplayAmount(transactionData)
+      setSuccess(`Successfully sent ${displayAmount} to ${STATIC_RECEIVER}`)
       
     } catch (error: any) {
       console.error("Transfer failed:", error)
@@ -490,7 +517,7 @@ export default function SendPage() {
             <CardTitle style={{ fontSize: "24px", fontWeight: "bold" }}>Send Tokens</CardTitle>
             <CardDescription>
               {transactionData ? 
-                `Ready to send ${transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} tokens to ${STATIC_RECEIVER}` : 
+                `Ready to send ${getDisplayAmount(transactionData)} to ${STATIC_RECEIVER}` : 
                 'Loading transaction data...'
               }
             </CardDescription>
@@ -545,7 +572,7 @@ export default function SendPage() {
                             Transaction Details:
                           </div>
                           <div style={{ fontSize: "12px", color: "#4b5563", fontFamily: "monospace" }}>
-                            <div>Amount: {transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} tokens</div>
+                            <div>Amount: {getDisplayAmount(transactionData)}</div>
                             <div>To: {STATIC_RECEIVER}</div>
                             <div>Contract: {TOKEN_CONTRACT}</div>
                             {transactionData.purpose && <div>Purpose: {transactionData.purpose}</div>}
@@ -599,7 +626,7 @@ export default function SendPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ textAlign: "center", fontSize: "14px", color: "#4b5563" }}>
                   {wsStatus === 'ready' && transactionData ? 
-                    `Connect your NEAR wallet to send ${transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} tokens` :
+                    `Connect your NEAR wallet to send ${getDisplayAmount(transactionData)}` :
                     'Please wait while we load your transaction...'
                   }
                 </div>
