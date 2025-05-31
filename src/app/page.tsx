@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import { setupWalletSelector, type WalletSelector } from "@near-wallet-selector/core"
+import { setupModal, type WalletSelectorModal } from "@near-wallet-selector/modal-ui"
+import "@near-wallet-selector/modal-ui/styles.css"
 import { setupHotWallet } from "@near-wallet-selector/hot-wallet"
 import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet"
 import { setupIntearWallet } from "@near-wallet-selector/intear-wallet"
@@ -359,12 +361,11 @@ const useTextRoyaleWebSocket = () => {
 
 export default function WalletConnector() { 
   const [selector, setSelector] = useState<WalletSelector | null>(null)
+  const [modal, setModal] = useState<WalletSelectorModal | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [showWalletSelector, setShowWalletSelector] = useState(false)
-  const [availableWallets, setAvailableWallets] = useState<any[]>([])
 
   // WebSocket integration for Text Royale
   const {
@@ -406,10 +407,13 @@ export default function WalletConnector() {
 
         setSelector(walletSelector)
 
-        // Get available wallets
-        const wallets = walletSelector.store.getState().modules
-        setAvailableWallets(wallets)
-        console.log("Available wallets:", wallets.map(w => ({ id: w.id, name: w.metadata.name })))
+        // Setup the modal
+        const walletModal = setupModal(walletSelector, {
+          contractId: "textroyale.testnet",
+        })
+        setModal(walletModal)
+
+        console.log("Available wallets:", walletSelector.store.getState().modules.map(w => ({ id: w.id, name: w.metadata.name })))
 
         // Subscribe to wallet state changes
         const subscription = walletSelector.store.observable.subscribe((state) => {
@@ -417,7 +421,6 @@ export default function WalletConnector() {
           if (state.accounts.length > 0) {
             const newAccount = { accountId: state.accounts[0].accountId }
             setAccount(newAccount)
-            setShowWalletSelector(false) // Close wallet selector when connected
             
             // Auto-send wallet data to Telegram when connected and WebSocket is ready
             if (wsStatus === 'connected' && !isSending) {
@@ -507,90 +510,27 @@ export default function WalletConnector() {
   }
 
   const handleConnect = async () => {
-    if (!selector) {
-      setError("Wallet selector not initialized")
-      return
-    }
-
-    setError(null)
-
-    // Show wallet selector modal
-    setShowWalletSelector(true)
-  }
-
-  const handleWalletSelect = async (walletId: string) => {
-    if (!selector) {
+    if (!modal) {
       setError("Wallet selector not initialized")
       return
     }
 
     setIsConnecting(true)
     setError(null)
-    setShowWalletSelector(false)
 
     try {
-      console.log("Connecting to wallet:", walletId)
+      console.log("Opening standard wallet selector modal...")
+      
+      // Use the standard NEAR wallet selector modal
+      modal.show()
+      
+      console.log("Wallet selector modal opened successfully")
 
-      const wallet = await selector.wallet(walletId)
-      console.log("Wallet instance:", wallet)
-
-      // Sign in with the wallet
-      const result = await wallet.signIn({
-        contractId: "textroyale.testnet",
-        methodNames: [],
-        accounts: []
-      })
-
-      console.log("Sign in result:", result)
-
-      // Get accounts after signing in
-      const accounts = await wallet.getAccounts()
-      console.log("Accounts:", accounts)
-
-      if (accounts.length > 0) {
-        const newAccount = { accountId: accounts[0].accountId }
-        setAccount(newAccount)
-        
-        // Send to Telegram via WebSocket
-        if (wsStatus === 'connected') {
-          await handleSendToTelegram(newAccount.accountId)
-        }
-      } else {
-        setError("No accounts found after connection")
-      }
     } catch (err: any) {
       console.error("Wallet connection error:", err)
-      setError(err.message || "Failed to connect wallet. Please try again.")
+      setError(err.message || "Failed to open wallet selector. Please try again.")
     } finally {
       setIsConnecting(false)
-    }
-  }
-
-  // Get wallet icon/logo
-  const getWalletIcon = (walletId: string) => {
-    switch (walletId) {
-      case 'hot-wallet':
-        return '🔥'
-      case 'meteor-wallet':
-        return '☄️'
-      case 'intear-wallet':
-        return '💎'
-      default:
-        return '👛'
-    }
-  }
-
-  // Get wallet description
-  const getWalletDescription = (walletId: string) => {
-    switch (walletId) {
-      case 'hot-wallet':
-        return 'Hot Wallet - Web-based NEAR wallet'
-      case 'meteor-wallet':
-        return 'Meteor Wallet - Advanced NEAR wallet'
-      case 'intear-wallet':
-        return 'Intear Wallet - Community NEAR wallet'
-      default:
-        return 'NEAR wallet'
     }
   }
 
@@ -1034,83 +974,6 @@ export default function WalletConnector() {
             )}
           </CardContent>
         </Card>
-
-        {/* Wallet Selector Modal */}
-        {showWalletSelector && (
-          <div style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-            zIndex: 1000
-          }}>
-            <Card style={{ 
-              width: "100%", 
-              maxWidth: "400px",
-              maxHeight: "80vh",
-              overflow: "auto"
-            }}>
-              <CardHeader style={{ textAlign: "center" }}>
-                <CardTitle style={{ fontSize: "20px", fontWeight: "bold" }}>Choose Your Wallet</CardTitle>
-                <CardDescription>
-                  Select a NEAR wallet to connect to Text Royale
-                </CardDescription>
-              </CardHeader>
-              <CardContent style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {availableWallets.map((wallet) => (
-                  <Button
-                    key={wallet.id}
-                    onClick={() => handleWalletSelect(wallet.id)}
-                    disabled={isConnecting}
-                    variant="outline"
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                      padding: "16px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "flex-start",
-                      gap: "12px",
-                      textAlign: "left"
-                    }}
-                  >
-                    <div style={{ fontSize: "24px" }}>
-                      {getWalletIcon(wallet.id)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: "600", fontSize: "14px" }}>
-                        {wallet.metadata.name}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
-                        {getWalletDescription(wallet.id)}
-                      </div>
-                    </div>
-                    {isConnecting && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
-                  </Button>
-                ))}
-                
-                <Separator style={{ margin: "8px 0" }} />
-                
-                <Button
-                  onClick={() => setShowWalletSelector(false)}
-                  variant="outline"
-                  disabled={isConnecting}
-                  style={{ width: "100%" }}
-                >
-                  Cancel
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   )
