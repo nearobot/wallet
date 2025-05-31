@@ -98,7 +98,7 @@ const useTextRoyaleWebSocket = () => {
   const initializeConnection = () => {
     try {
       // Update this URL to point to your WebSocket server
-      const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3001'
+      const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'https://ws.textroyale.com/'
       
       wsRef.current = new WebSocket(wsUrl)
 
