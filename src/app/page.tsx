@@ -49,7 +49,7 @@ const useTextRoyaleWebSocket = () => {
   const fetchTransactionData = async (sessionId: string) => {
     try {
       console.log('Fetching transaction data for session:', sessionId)
-      const response = await fetch(`http://localhost:3001/session/${sessionId}/transaction`)
+      const response = await fetch(`https://wallet-rosy-theta.vercel.app/session/${sessionId}/transaction`)
       
       if (response.ok) {
         const data = await response.json()
