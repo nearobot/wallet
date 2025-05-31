@@ -390,51 +390,6 @@ export default function WalletConnector() {
 
   const sessionId = getSessionIdFromUrl()
 
-  // Show overlay if no session ID
-  if (!sessionId) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #dbeafe 0%, #c7d2fe 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "16px",
-        }}
-      >
-        <Card style={{ 
-          width: "100%", 
-          maxWidth: "400px",
-          textAlign: "center"
-        }}>
-          <CardContent style={{ padding: "48px 24px" }}>
-            <div style={{
-              marginBottom: "24px",
-              fontSize: "48px"
-            }}>
-              🚫
-            </div>
-            <h2 style={{ 
-              fontSize: "20px", 
-              fontWeight: "600",
-              marginBottom: "12px"
-            }}>
-              No Session ID Found
-            </h2>
-            <p style={{ 
-              color: "#6b7280", 
-              fontSize: "14px",
-              lineHeight: "1.5"
-            }}>
-              Please start from wallet
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   useEffect(() => {
     const initWalletSelector = async () => {
       try {
@@ -497,6 +452,51 @@ export default function WalletConnector() {
       handleSendToTelegram(account.accountId)
     }
   }, [account, wsStatus, isSending])
+
+  // Show overlay if no session ID - moved after all hooks
+  if (!sessionId) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #dbeafe 0%, #c7d2fe 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px",
+        }}
+      >
+        <Card style={{ 
+          width: "100%", 
+          maxWidth: "400px",
+          textAlign: "center"
+        }}>
+          <CardContent style={{ padding: "48px 24px" }}>
+            <div style={{
+              marginBottom: "24px",
+              fontSize: "48px"
+            }}>
+              🚫
+            </div>
+            <h2 style={{ 
+              fontSize: "20px", 
+              fontWeight: "600",
+              marginBottom: "12px"
+            }}>
+              No Session ID Found
+            </h2>
+            <p style={{ 
+              color: "#6b7280", 
+              fontSize: "14px",
+              lineHeight: "1.5"
+            }}>
+              Please start from wallet
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const handleConnect = async () => {
     if (!selector) {
