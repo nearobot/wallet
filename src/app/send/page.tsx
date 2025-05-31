@@ -58,12 +58,12 @@ const useWebSocketTransaction = () => {
       wsRef.current.onopen = () => {
         console.log('WebSocket connection established')
         setWsStatus('connected')
-        setWsMessage('Connected. Fetching transaction data...')
+        setWsMessage('Connected. Initializing session...')
 
-        // Request transaction data for this session
+        // Initialize session to get transaction data
         if (sessionIdRef.current && wsRef.current) {
           wsRef.current.send(JSON.stringify({
-            type: 'get_transaction_data',
+            type: 'init_session',
             sessionId: sessionIdRef.current
           }))
         }
@@ -102,23 +102,27 @@ const useWebSocketTransaction = () => {
   // Handle WebSocket messages
   const handleWebSocketMessage = (message: any) => {
     switch (message.type) {
-      case 'transaction_data':
-        console.log('Received transaction data:', message.data)
-        setTransactionData(message.data)
+      case 'session_initialized':
+        console.log('Session initialized:', message)
         setSessionInfo({
           userId: message.userId || 'unknown',
           username: message.username || 'Player'
         })
-        setWsMessage(`Transaction ready: ${message.data.metadata?.originalAmount || (parseFloat(message.data.amount) / 1e24).toFixed(2)} NEAR`)
-        setWsStatus('ready')
+        
+        if (message.transactionData) {
+          console.log('Received transaction data:', message.transactionData)
+          setTransactionData(message.transactionData)
+          const displayAmount = message.transactionData.metadata?.originalAmount || 
+                               (parseFloat(message.transactionData.amount) / 1e24).toFixed(2)
+          setWsMessage(`Transaction ready: ${displayAmount} NEAR to ${message.transactionData.receiver}`)
+          setWsStatus('ready')
+        } else {
+          setWsMessage('No transaction data found for this session')
+          setWsStatus('error')
+        }
         break
 
-      case 'no_transaction_data':
-        setWsMessage('No transaction data found for this session')
-        setWsStatus('error')
-        break
-
-      case 'transaction_completed':
+      case 'transaction_result_received':
         setWsMessage('Transaction completed successfully!')
         setWsStatus('success')
         setIsProcessing(false)
@@ -128,6 +132,10 @@ const useWebSocketTransaction = () => {
         setWsMessage(message.message || 'An error occurred')
         setWsStatus('error')
         setIsProcessing(false)
+        break
+
+      case 'pong':
+        // Handle ping-pong for connection health
         break
 
       default:
@@ -179,8 +187,16 @@ const useWebSocketTransaction = () => {
     sessionIdRef.current = sessionId
     initializeConnection()
 
+    // Set up ping interval to keep connection alive
+    const pingInterval = setInterval(() => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'ping' }))
+      }
+    }, 30000) // Ping every 30 seconds
+
     // Cleanup on unmount
     return () => {
+      clearInterval(pingInterval)
       if (wsRef.current) {
         wsRef.current.close()
         wsRef.current = null
