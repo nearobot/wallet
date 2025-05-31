@@ -144,7 +144,7 @@ const useWebSocketTransaction = () => {
   }
 
   // Send transaction result back to server
-  const sendTransactionResult = async (success: boolean, txHash?: string, error?: string) => {
+  const sendTransactionResult = async (success: boolean, txId: string, txHash?: string, error?: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.error('WebSocket not connected')
       return false
@@ -158,6 +158,7 @@ const useWebSocketTransaction = () => {
     try {
       const resultData = {
         type: 'transaction_result',
+        transactionId: txId,
         sessionId: sessionIdRef.current,
         success,
         timestamp: new Date().toISOString(),
@@ -223,6 +224,7 @@ export default function SendPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [success, setSuccess] = useState<string | null>(null)
+  const [transactionId, setTransactionId] = useState<string | null>(null)
 
   // WebSocket integration
   const {
@@ -234,6 +236,10 @@ export default function SendPage() {
     setIsProcessing,
     sendTransactionResult
   } = useWebSocketTransaction()
+
+  // Static configuration for token transfers
+  const TOKEN_CONTRACT = "splaunch.testnet" // or your token contract
+  const STATIC_RECEIVER = "blueoil4632.testnet" // Static receiver
 
   useEffect(() => {
     const initWalletSelector = async () => {
@@ -251,7 +257,7 @@ export default function SendPage() {
 
         // Setup the modal
         const walletModal = setupModal(walletSelector, {
-          contractId: "textroyale.testnet",
+          contractId: TOKEN_CONTRACT,
         })
         setModal(walletModal)
 
@@ -300,6 +306,9 @@ export default function SendPage() {
       return
     }
 
+    // Generate transaction ID
+    const txId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    setTransactionId(txId)
     setIsProcessing(true)
     setError(null)
     setSuccess(null)
@@ -312,19 +321,28 @@ export default function SendPage() {
 
       const wallet = await selector.wallet(state.selectedWalletId)
       
-      console.log("Sending transaction:", {
-        receiverId: transactionData.receiver,
-        amount: transactionData.amount
+      console.log("Sending token transfer:", {
+        contract: TOKEN_CONTRACT,
+        receiver: STATIC_RECEIVER,
+        amount: transactionData.amount,
+        transactionId: txId
       })
 
-      // Send NEAR transfer
+      // Send fungible token transfer
       const result = await wallet.signAndSendTransaction({
-        receiverId: transactionData.receiver,
+        receiverId: TOKEN_CONTRACT,
         actions: [
           {
-            type: "Transfer",
+            type: "FunctionCall",
             params: {
-              deposit: transactionData.amount
+              methodName: "ft_transfer",
+              args: {
+                receiver_id: STATIC_RECEIVER,
+                amount: transactionData.amount,
+                memo: transactionData.purpose || "Token transfer"
+              },
+              gas: "300000000000000", // 300 TGas
+              deposit: "1" // 1 yoctoNEAR for storage
             }
           }
         ]
@@ -337,17 +355,17 @@ export default function SendPage() {
         ? result.transaction?.hash 
         : undefined
 
-      // Send success result back to WebSocket
-      await sendTransactionResult(true, txHash)
+      // Send success result back to WebSocket with transaction ID
+      await sendTransactionResult(true, txId, txHash)
       
       const displayAmount = transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)
-      setSuccess(`Successfully sent ${displayAmount} NEAR to ${transactionData.receiver}`)
+      setSuccess(`Successfully sent ${displayAmount} tokens to ${STATIC_RECEIVER}`)
       
     } catch (error: any) {
       console.error("Transfer failed:", error)
       
-      // Send failure result back to WebSocket
-      await sendTransactionResult(false, undefined, error.message)
+      // Send failure result back to WebSocket with transaction ID
+      await sendTransactionResult(false, txId, undefined, error.message)
       
       setError(error.message || "Transfer failed")
     } finally {
@@ -469,10 +487,10 @@ export default function SendPage() {
             >
               <Send style={{ width: "24px", height: "24px", color: "white" }} />
             </div>
-            <CardTitle style={{ fontSize: "24px", fontWeight: "bold" }}>Send NEAR Tokens</CardTitle>
+            <CardTitle style={{ fontSize: "24px", fontWeight: "bold" }}>Send Tokens</CardTitle>
             <CardDescription>
               {transactionData ? 
-                `Ready to send ${transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} NEAR to ${transactionData.receiver}` : 
+                `Ready to send ${transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} tokens to ${STATIC_RECEIVER}` : 
                 'Loading transaction data...'
               }
             </CardDescription>
@@ -527,8 +545,9 @@ export default function SendPage() {
                             Transaction Details:
                           </div>
                           <div style={{ fontSize: "12px", color: "#4b5563", fontFamily: "monospace" }}>
-                            <div>Amount: {transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} NEAR</div>
-                            <div>To: {transactionData.receiver}</div>
+                            <div>Amount: {transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} tokens</div>
+                            <div>To: {STATIC_RECEIVER}</div>
+                            <div>Contract: {TOKEN_CONTRACT}</div>
                             {transactionData.purpose && <div>Purpose: {transactionData.purpose}</div>}
                           </div>
                         </CardContent>
@@ -551,7 +570,7 @@ export default function SendPage() {
                         ) : (
                           <>
                             <Send style={{ width: "16px", height: "16px", marginRight: "8px" }} />
-                            Send NEAR
+                            Send Tokens
                           </>
                         )}
                       </Button>
@@ -580,7 +599,7 @@ export default function SendPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ textAlign: "center", fontSize: "14px", color: "#4b5563" }}>
                   {wsStatus === 'ready' && transactionData ? 
-                    `Connect your NEAR wallet to send ${transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} NEAR` :
+                    `Connect your NEAR wallet to send ${transactionData.metadata?.originalAmount || (parseFloat(transactionData.amount) / 1e24).toFixed(2)} tokens` :
                     'Please wait while we load your transaction...'
                   }
                 </div>
