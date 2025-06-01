@@ -128,6 +128,13 @@ const useWebSocketTransaction = () => {
         setIsProcessing(false)
         break
 
+      case 'wallet_disconnection_received':
+        console.log('Wallet disconnection confirmed by server')
+        setWsMessage('Wallet disconnected successfully!')
+        setWsStatus('success')
+        setIsProcessing(false)
+        break
+
       case 'error':
         setWsMessage(message.message || 'An error occurred')
         setWsStatus('error')
@@ -158,7 +165,7 @@ const useWebSocketTransaction = () => {
     try {
       const resultData = {
         type: 'transaction_result',
-        transactionId: txId,
+        transactionId: txId, // Server expects transactionId, not txId
         sessionId: sessionIdRef.current,
         success,
         timestamp: new Date().toISOString(),
@@ -171,6 +178,35 @@ const useWebSocketTransaction = () => {
       return true
     } catch (error) {
       console.error('Error sending transaction result:', error)
+      return false
+    }
+  }
+
+  // Send wallet disconnection to server
+  const sendWalletDisconnection = async (reason?: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket not connected')
+      return false
+    }
+
+    if (!sessionIdRef.current) {
+      console.error('No session ID')
+      return false
+    }
+
+    try {
+      const disconnectData = {
+        type: 'wallet_disconnected',
+        sessionId: sessionIdRef.current,
+        reason: reason || 'User requested disconnection',
+        timestamp: new Date().toISOString()
+      }
+
+      console.log('Sending wallet disconnection:', disconnectData)
+      wsRef.current.send(JSON.stringify(disconnectData))
+      return true
+    } catch (error) {
+      console.error('Error sending wallet disconnection:', error)
       return false
     }
   }
@@ -212,7 +248,8 @@ const useWebSocketTransaction = () => {
     sessionInfo,
     isProcessing,
     setIsProcessing,
-    sendTransactionResult
+    sendTransactionResult,
+    sendWalletDisconnection
   }
 }
 
@@ -225,6 +262,16 @@ export default function SendPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [success, setSuccess] = useState<string | null>(null)
   const [transactionId, setTransactionId] = useState<string | null>(null)
+  const [allowDisconnect, setAllowDisconnect] = useState(false)
+
+  // Check if disconnect is allowed from URL
+  const getDisconnectFromUrl = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      return urlParams.get('disconnect') === 'true'
+    }
+    return false
+  }
 
   // WebSocket integration
   const {
@@ -234,7 +281,8 @@ export default function SendPage() {
     sessionInfo,
     isProcessing,
     setIsProcessing,
-    sendTransactionResult
+    sendTransactionResult,
+    sendWalletDisconnection
   } = useWebSocketTransaction()
 
   // Static configuration for token transfers
@@ -315,6 +363,11 @@ export default function SendPage() {
     }
 
     initWalletSelector()
+  }, [])
+
+  // Check URL parameters on mount
+  useEffect(() => {
+    setAllowDisconnect(getDisconnectFromUrl())
   }, [])
 
   const handleConnect = async () => {
@@ -403,18 +456,30 @@ export default function SendPage() {
   const handleDisconnect = async () => {
     if (!selector) return
 
+    setIsProcessing(true)
+    setError(null)
+
     try {
+      // First, notify the WebSocket server about the disconnection
+      await sendWalletDisconnection('User requested wallet disconnection')
+
+      // Then disconnect from the wallet
       const state = selector.store.getState()
       if (state.selectedWalletId) {
         const wallet = await selector.wallet(state.selectedWalletId)
         await wallet.signOut()
       }
+      
       setAccount(null)
       setSuccess(null)
       setError(null)
+      
+      console.log('Wallet disconnected successfully')
+      
     } catch (err) {
       setError("Failed to disconnect wallet")
       console.error("Wallet disconnection error:", err)
+      setIsProcessing(false)
     }
   }
 
@@ -432,6 +497,17 @@ export default function SendPage() {
     if (wsStatus === 'error') return 'bg-red-50 border-red-200 text-red-800'
     if (wsStatus === 'ready') return 'bg-blue-50 border-blue-200 text-blue-800'
     return 'bg-yellow-50 border-yellow-200 text-yellow-800'
+  }
+
+  // Close the current tab/window
+  const handleBackToTelegram = () => {
+    if (typeof window !== 'undefined') {
+      window.close()
+      // Fallback: try to navigate to telegram if close doesn't work
+      setTimeout(() => {
+        window.location.href = 'https://t.me'
+      }, 500)
+    }
   }
 
   if (isLoading) {
@@ -612,14 +688,43 @@ export default function SendPage() {
                     </div>
                   )}
 
-                  <Button 
-                    onClick={handleDisconnect} 
-                    variant="outline" 
-                    style={{ width: "100%" }}
-                  >
-                    <LogOut style={{ width: "16px", height: "16px", marginRight: "8px" }} />
-                    Disconnect Wallet
-                  </Button>
+                  {/* Conditional buttons based on connection status and URL params */}
+                  {(account || success) ? (
+                    <Button 
+                      onClick={handleBackToTelegram} 
+                      style={{ 
+                        width: "100%",
+                        backgroundColor: "#0088cc",
+                        borderColor: "#0088cc",
+                        color: "white"
+                      }}
+                    >
+                      <span style={{ fontSize: "16px", marginRight: "8px" }}>📱</span>
+                      Back To Telegram
+                    </Button>
+                  ) : null}
+
+                  {/* Show disconnect button only if allowed by URL parameter */}
+                  {allowDisconnect && account && !success && (
+                    <Button 
+                      onClick={handleDisconnect} 
+                      variant="outline" 
+                      style={{ width: "100%" }}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Disconnecting...
+                        </>
+                      ) : (
+                        <>
+                          <LogOut style={{ width: "16px", height: "16px", marginRight: "8px" }} />
+                          Disconnect Wallet
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : (
