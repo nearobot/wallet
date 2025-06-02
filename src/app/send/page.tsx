@@ -151,7 +151,7 @@ const useWebSocketTransaction = () => {
   }
 
   // Send transaction result back to server
-  const sendTransactionResult = async (success: boolean, txId: string, txHash?: string, error?: string) => {
+  const sendTransactionResult = async (success: boolean, txId: string, txHash?: string, error?: string, walletId?: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.error('WebSocket not connected')
       return false
@@ -170,7 +170,8 @@ const useWebSocketTransaction = () => {
         success,
         timestamp: new Date().toISOString(),
         ...(success && txHash && { txHash }),
-        ...(error && { error })
+        ...(error && { error }),
+        ...(walletId && { walletId })
       }
 
       console.log('Sending transaction result:', resultData)
@@ -436,7 +437,7 @@ export default function SendPage() {
         : undefined
 
       // Send success result back to WebSocket with transaction ID
-      await sendTransactionResult(true, txId, txHash)
+      await sendTransactionResult(true, txId, txHash, undefined, state.selectedWalletId || undefined)
       
       const displayAmount = getDisplayAmount(transactionData)
       setSuccess(`Successfully sent ${displayAmount} to ${STATIC_RECEIVER}`)
@@ -444,8 +445,11 @@ export default function SendPage() {
     } catch (error: any) {
       console.error("Transfer failed:", error)
       
+      // Get wallet state for failure case
+      const state = selector.store.getState()
+      
       // Send failure result back to WebSocket with transaction ID
-      await sendTransactionResult(false, txId, undefined, error.message)
+      await sendTransactionResult(false, txId, undefined, error.message, state.selectedWalletId || undefined)
       
       setError(error.message || "Transfer failed")
     } finally {
