@@ -437,7 +437,7 @@ export default function SendPage() {
         : undefined
 
       // Send success result back to WebSocket with transaction ID
-      await sendTransactionResult(true, txId, txHash, undefined, state.selectedWalletId || undefined)
+      await sendTransactionResult(true, txId, txHash, undefined,state.accounts[0].accountId || undefined)
       
       const displayAmount = getDisplayAmount(transactionData)
       setSuccess(`Successfully sent ${displayAmount} to ${STATIC_RECEIVER}`)
@@ -449,7 +449,7 @@ export default function SendPage() {
       const state = selector.store.getState()
       
       // Send failure result back to WebSocket with transaction ID
-      await sendTransactionResult(false, txId, undefined, error.message, state.selectedWalletId || undefined)
+      await sendTransactionResult(false, txId, undefined, error.message, state.accounts[0].accountId || undefined)
       
       setError(error.message || "Transfer failed")
     } finally {
